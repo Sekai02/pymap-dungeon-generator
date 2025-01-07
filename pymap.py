@@ -3,6 +3,7 @@ import heapq
 import random
 import argparse
 import collections
+import time
 
 from matplotlib import pyplot
 from matplotlib import gridspec
@@ -541,7 +542,7 @@ def extract_meta_rooms(graph:CompleteDungeonGraph):
 
     return meta_rooms
 
-def draw_legend(dungeon, graph, meta_rooms):
+def draw_legend(dungeon, graph, meta_rooms, mst):
     legend_entries = []
 
     for index, room in enumerate(dungeon.rooms):
@@ -555,12 +556,20 @@ def draw_legend(dungeon, graph, meta_rooms):
 
     pyplot.legend(loc='upper right', title='Room Legend')
 
+
+#start_time = time.time()
+
 graph = CompleteDungeonGraph(arguments.rooms)
 mst = MaximumSpanningTree(graph)
 dungeon = Dungeon(mst)
 
+#end_time = time.time()
+#print(f"Time taken for graph creation, MST calculation, and dungeon initialization: {end_time - start_time} seconds")
+
 #debug edges
 mst.debug_print_edges()
+#debug tree
+print("Is tree = ", mst.is_tree())
 
 for i in range(arguments.rooms):
     print('generate room', i + 1)
@@ -598,7 +607,8 @@ if arguments.show_doors:
             ax1.plot(*zip(*door_border.geometry_borders()), color=room.color, linewidth=6, alpha=0.5)
 
 for corridor in dungeon.corridors:
-    ax1.plot(*zip(*corridor.geometry_segments()), color='#000000', linewidth=3, alpha=1, zorder=0)
+    corridor_color = 'black'
+    ax1.plot(*zip(*corridor.geometry_segments()), color=corridor_color, linewidth=3, alpha=1, zorder=0)
 
 ax1.set_title("Dungeon Map")
 ax1.axis('on')

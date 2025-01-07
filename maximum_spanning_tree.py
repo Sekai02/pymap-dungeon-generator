@@ -1,7 +1,6 @@
 import networkx as nx
-from pulp import LpProblem, LpVariable, lpSum, LpMinimize, PULP_CBC_CMD
-from itertools import combinations
 from complete_dungeon_graph import CompleteDungeonGraph
+from pulp import LpProblem, LpVariable, lpSum, LpMinimize, PULP_CBC_CMD
 
 class MaximumSpanningTree:
     def __init__(self, dungeon_graph):
@@ -10,11 +9,12 @@ class MaximumSpanningTree:
     def _calculate_mst(self, graph):
         edges = list(graph.edges(data=True))
         nodes = list(graph.nodes(data=True))
+        num_nodes = len(nodes)
 
-        max_weight = max(data['weight'] for _, _, data in edges)
-        aux_weights = {(u, v): max_weight - data['weight'] for u, v, data in edges}
+        max_weight = max(data["weight"] for _, _, data in edges)
+        aux_weights = {(u, v): max_weight - data["weight"] for u, v, data in edges}
 
-        problem = LpProblem("MaximumSpanningTree", LpMinimize)
+        problem = LpProblem("MinimumSpanningTree", LpMinimize)
 
         edge_vars = {
             (u, v): LpVariable(f"x_{u}_{v}", cat="Binary")
@@ -22,19 +22,24 @@ class MaximumSpanningTree:
         }
 
         problem += lpSum(edge_vars[u, v] * aux_weights[u, v] for u, v in aux_weights)
-        problem += lpSum(edge_vars.values()) == len(nodes) - 1
 
+        problem += lpSum(edge_vars.values()) == num_nodes - 1
+
+        flow_vars = {
+            (u, v): LpVariable(f"f_{u}_{v}", lowBound=0, cat="Continuous")
+            for u, v, _ in edges
+        }
+        root_node = nodes[0][0]
         for node in graph.nodes:
-            problem += (
-                lpSum(edge_vars[u, v] for u, v, _ in edges if u == node or v == node) >= 1
-            )
+            in_flow = lpSum(flow_vars[v, u] for v, u, _ in edges if u == node)
+            out_flow = lpSum(flow_vars[u, v] for u, v, _ in edges if u == node)
+            if node == root_node:
+                problem += out_flow - in_flow == num_nodes - 1
+            else:
+                problem += out_flow - in_flow == -1
 
-        for subset_size in range(2, len(nodes)):
-            for subset in combinations(graph.nodes, subset_size):
-                subset_edges = [(u, v) for u, v, _ in edges if u in subset and v in subset]
-                problem += (
-                    lpSum(edge_vars[u, v] for u, v in subset_edges) <= subset_size - 1
-                )
+        for u, v, _ in edges:
+            problem += flow_vars[u, v] <= edge_vars[u, v] * (num_nodes - 1)
 
         solver = PULP_CBC_CMD(msg=False)
         problem.solve(solver)
@@ -58,8 +63,11 @@ class MaximumSpanningTree:
 
     def get_cost(self):
         return self._cost
-    
+
     def debug_print_edges(self):
         print("Edges in the MST:")
         for u, v, data in self._mst.edges(data=True):
             print(f"Edge ({u+1}, {v+1}) with weight {data['weight']}")
+
+    def is_tree(self):
+        return nx.is_tree(self._mst)

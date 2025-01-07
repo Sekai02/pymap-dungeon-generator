@@ -1,4 +1,4 @@
-# World-PyMap-Generator
+# pymap-dungeon-generator
 
 Random map generator for video game prototyping and level design based on graph and optimization models.
 
